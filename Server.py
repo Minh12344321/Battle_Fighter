@@ -1,47 +1,50 @@
 import socket
 import threading
 
-# Địa chỉ và cổng server
-HOST = '127.0.0.1'  # Địa chỉ IP của máy chủ
-PORT = 12345        # Cổng để lắng nghe kết nối
+# Server configuration
+HOST = '127.0.0.4'
+PORT = 12345
+clients = []  # List to store connected clients
 
-# Tạo socket cho server
-server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server_socket.bind((HOST, PORT))
-server_socket.listen(2)  # Lắng nghe tối đa 2 kết nối (2 người chơi)
+def handle_client(client_socket, client_address, player_number):
+    print(f"[New connection] {client_address} connected as Player {player_number}")
+    client_socket.send(f"Welcome Player {player_number}".encode())
 
-print("Server started")
-
-clients = []
-
-# Hàm xử lý dữ liệu từ client
-def handle_client(client_socket, player_id):
     while True:
         try:
-            # Nhận dữ liệu từ client
-            data = client_socket.recv(1024).decode()
-            if not data:
+            message = client_socket.recv(1024).decode()
+            if not message:
                 break
-            print(f"Receive player{player_id}: {data}")
-            
-            # Gửi dữ liệu cho người chơi khác
+            print(f"[Player {player_number}] {message}")
+            # Forward the player's position to the other client
             for client in clients:
                 if client != client_socket:
-                    client.sendall(f"{player_id}:{data}".encode())
-        
-        except Exception as e:
-            print(f"Error to receive {player_id}: {e}")
+                    client.send(message.encode())
+        except:
             break
 
-    client_socket.close()
+    # Remove the client and close the connection
+    print(f"[Disconnected] Player {player_number} has disconnected.")
     clients.remove(client_socket)
-    print(f"Player {player_id} disconnected")
+    client_socket.close()
 
-# Chấp nhận kết nối từ 2 người chơi
-for player_id in range(2):
-    client_socket, addr = server_socket.accept()
-    print(f"Connect to {addr}")
-    clients.append(client_socket)
-    
-    # Tạo một luồng xử lý riêng cho mỗi client
-    threading.Thread(target=handle_client, args=(client_socket, player_id + 1)).start()
+# Start server
+def start_server():
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_socket.bind((HOST, PORT))
+    server_socket.listen(2)  # Allow only 2 clients to connect
+
+    print(f"[Listening] Server is running at {HOST}:{PORT}")
+
+    player_number = 1
+    while True:
+        client_socket, client_address = server_socket.accept()
+        clients.append(client_socket)
+
+        # Assign player number and handle the client in a separate thread
+        threading.Thread(target=handle_client, args=(client_socket, client_address, player_number)).start()
+        player_number += 1
+
+# Run server
+if __name__ == "__main__":
+    start_server()
