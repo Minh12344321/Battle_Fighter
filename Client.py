@@ -8,10 +8,8 @@ import threading,inspect,json
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 assets_path1 = os.path.join(currentdir, 'Assets', 'Images')
 assets_path2 = os.path.join(currentdir, 'Assets', 'Sound')
-# Khởi tạo Pygame
 pygame.init()
 
-# Kích thước cửa sổ
 WIDTH, HEIGHT = 1600, 600
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Game Đánh Nhau")
@@ -24,15 +22,15 @@ BLACK = (0, 0, 0)
 GREEN = (0, 255, 0)
 
 BULLET_COLOR = (255, 255, 0)
-PLAYER1_COLOR = (255, 255, 0)  # Màu sắc nhân vật 1
-PLAYER2_COLOR = (255, 100, 100)  # Màu sắc nhân vật 2
-AVATAR1_COLOR = (255, 255, 0)  # Màu sắc avatar cho player 1 (vàng)
-AVATAR2_COLOR = GREEN    # Màu sắc avatar cho player 2 (xanh lá)
+PLAYER1_COLOR = (255, 255, 0) 
+PLAYER2_COLOR = (255, 100, 100)  
+AVATAR1_COLOR = (255, 255, 0)  
+AVATAR2_COLOR = GREEN   
 BUTTON_COLOR = BLACK
 bg_color = WHITE
 
-HOST = '127.0.0.4'  # Địa chỉ IP máy chủ
-PORT = 12345        # Cổng kết nối
+HOST = '127.0.0.4'  
+PORT = 12345        
 
 # Tạo hàm kết nối socket
 def connect_to_server(ip, port):
@@ -119,7 +117,7 @@ def login_screen():
                         receive_thread.daemon = True  # Đảm bảo rằng thread này sẽ kết thúc khi ứng dụng chính đóng
                         receive_thread.start()
 
-                        open_game()
+                        run_game()
                     else:
                         message = "Kết nối thất bại. Kiểm tra IP và Port."
 
@@ -139,13 +137,6 @@ def login_screen():
         clock.tick(30)
 
 
-def open_game():
-    screen.fill(WHITE)
-    pygame.display.flip()
-    pygame.time.delay(3000)
-    coutdown_sound.play()
-    show_coutdown(screen,bg_color)
-    run_game()
 
 
 countdown_time = 180
@@ -229,6 +220,14 @@ def draw_bullet(surface, pos):
         (pos[0] + 15, pos[1] - 5)
     ])  
     
+def display_winner(winner):
+    # Hàm hiển thị thông báo người chiến thắng
+    font = pygame.font.SysFont(None, 74)
+    text = font.render(f"{winner} Wins!", True, WHITE)
+    screen.blit(text, (WIDTH // 2 - text.get_width() // 2, HEIGHT // 2 - text.get_height() // 2))
+    pygame.display.flip()
+
+    
 def show_coutdown(screen, bg_color):
     FONT_SIZE = 72
     FONT_COLOR = (255, 0, 0) 
@@ -243,10 +242,77 @@ def show_coutdown(screen, bg_color):
         pygame.time.wait(1000)  
     screen.fill(bg_color) 
     pygame.display.flip()
+
+def show_play_again_form():
+    # Tạo cửa sổ nhỏ hơn ở giữa màn hình
+    form_width, form_height = 300, 200
+    form_x = (WIDTH - form_width) // 2
+    form_y = (HEIGHT - form_height) // 2
+    font = pygame.font.SysFont(None, 36)
+
+    while True:
+        screen.fill(BLACK)  # Xóa màn hình chính
+        pygame.draw.rect(screen, WHITE, (form_x, form_y, form_width, form_height))  # Nền của form
+        text = font.render("Play Again?", True, BLACK)
+        screen.blit(text, (form_x + (form_width - text.get_width()) // 2, form_y + 30))
+
+        # Tạo các nút "Yes" và "No"
+        yes_button = pygame.Rect(form_x + 40, form_y + 120, 80, 40)
+        no_button = pygame.Rect(form_x + 180, form_y + 120, 80, 40)
+
+        pygame.draw.rect(screen, RED, yes_button)
+        pygame.draw.rect(screen, RED, no_button)
+
+        yes_text = font.render("Yes", True, WHITE)
+        no_text = font.render("No", True, WHITE)
+
+        screen.blit(yes_text, (yes_button.x + (yes_button.width - yes_text.get_width()) // 2,
+                               yes_button.y + (yes_button.height - yes_text.get_height()) // 2))
+        screen.blit(no_text, (no_button.x + (no_button.width - no_text.get_width()) // 2,
+                              no_button.y + (no_button.height - no_text.get_height()) // 2))
+        
+        pygame.display.flip()
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if yes_button.collidepoint(event.pos):
+                    open_game() # Chọn "Yes" để chơi lại
+                elif no_button.collidepoint(event.pos):
+                    login_screen()
+                    return
+    
+
+def reset_game_state():
+    # Đặt lại các biến trạng thái toàn cục của trò chơi
+    global health1, health2, player1_pos, player2_pos, bullets, last_shot_time_player1, last_shot_time_player2
+    health1 = 100
+    health2 = 100
+    player1_pos = [50, 50]  # Vị trí mặc định của người chơi 1
+    player2_pos = [WIDTH - 100, HEIGHT - 100]  # Vị trí mặc định của người chơi 2
+    bullets = []
+    last_shot_time_player1 = 0
+    last_shot_time_player2 = 0
+
+def open_game():
+    # Thiết lập lại trạng thái trò chơi trước khi chạy lại
+    reset_game_state()
+
+    # Hiển thị đếm ngược và bắt đầu trò chơi
+    screen.fill(WHITE)
+    pygame.display.flip()
+    
+    
+    run_game()
     
 def run_game():
     global is_dark_mode, health1, health2, player1_pos, player2_pos, bullets, last_shot_time_player1, last_shot_time_player2
-    
+    screen.fill(WHITE)
+    pygame.display.flip()
+    show_coutdown(screen,bg_color)
+    coutdown_sound.play()
     running = True
     while running:
         for event in pygame.event.get():
@@ -276,9 +342,12 @@ def run_game():
             new_player1_pos[0] = max(0, min(new_player1_pos[0], WIDTH - player_width))
             new_player1_pos[1] = max(0, min(new_player1_pos[1], HEIGHT - player_height))
             player1_pos = new_player1_pos
+            
+            if new_player1_pos != player1_pos:
+                player1_pos = new_player1_pos
+                # Gửi vị trí của Player 1 tới máy chủ
+                client_socket.send(str(player1_pos).encode())
 
-        # Gửi vị trí của Player 1 tới máy chủ
-        client_socket.send(str(player1_pos).encode())
 
      
         # Di chuyển nhân vật 2
@@ -298,8 +367,19 @@ def run_game():
             new_player2_pos[1] = max(0, min(new_player2_pos[1], HEIGHT - player_height))
             player2_pos = new_player2_pos
 
-        # Gửi vị trí của Player 2 tới máy chủ
-        client_socket.send(str(player2_pos).encode())
+            if new_player2_pos != player2_pos:
+                player2_pos = new_player2_pos
+                # Gửi vị trí của Player 1 tới máy chủ
+                client_socket.send(str(player2_pos).encode())
+
+                
+        if health1 <= 0 or health2 <= 0:
+            winner = "Player 2" if health1 <= 0 else "Player 1"
+            display_winner(winner)  # Hiển thị người chiến thắng
+            pygame.time.delay(3000)  # Tạm dừng 2 giây để người chơi thấy thông báo
+            show_play_again_form()
+            running = False
+           
 
         # Bắn viên đạn
         current_time = pygame.time.get_ticks()
